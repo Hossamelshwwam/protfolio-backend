@@ -117,6 +117,12 @@ const options: swaggerJsdoc.Options = {
   ],
 };
 
-const swaggerSpec = swaggerJsdoc(options);
+let swaggerSpec: any;
+try {
+  swaggerSpec = swaggerJsdoc(options);
+} catch (error) {
+  console.error('Failed to generate Swagger spec:', error);
+  swaggerSpec = { openapi: '3.0.0', info: { title: 'Portfolio API (Error Loading Docs)', version: '1.0.0' }, paths: {} };
+}
 
 export default swaggerSpec;
