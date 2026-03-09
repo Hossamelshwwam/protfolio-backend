@@ -4,9 +4,9 @@
   "description": "Portfolio Backend API - Express + Mongoose + TypeScript",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "dev": "ts-node-dev --respawn --transpile-only src/api/index.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/api/index.js",
     "lint": "eslint src/**/*.ts"
   },
   "dependencies": {
