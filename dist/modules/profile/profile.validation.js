@@ -9,13 +9,13 @@ exports.updateProfileSchema = zod_1.z.object({
     name: zod_1.z.string().trim().optional(),
     jobTitle: zod_1.z.string().trim().optional(),
     brief: zod_1.z.string().trim().optional(),
+    // CV is now a Google Drive (or similar) direct link, NOT a file upload
+    cvUrl: zod_1.z.string().url('cvUrl must be a valid URL').optional().or(zod_1.z.literal('')),
     // Multer parses form-data as strings, even if it's stringified JSON.
-    // We accept the raw strings or an object, and allow the controller to parse it.
     socialLinks: zod_1.z
         .any()
         .optional()
         .transform((val) => {
-        // If it's a stringified JSON object from FormData, parse it:
         if (typeof val === 'string') {
             try {
                 return JSON.parse(val);

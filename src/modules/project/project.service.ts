@@ -1,6 +1,6 @@
 import Project, { IProjectDocument } from './project.model';
 import { CreateProjectInput, UpdateProjectInput } from './project.validation';
-import { deleteLocalFile } from '../../utils/file.utils';
+import { uploadToCloudinary, deleteFromCloudinary } from '../../utils/cloudinary.utils';
 
 export const getAllProjects = async (): Promise<IProjectDocument[]> => {
   return await Project.find({}).sort({ createdAt: -1 });
@@ -27,12 +27,20 @@ export const createProject = async (
 
   const payload: Partial<IProjectDocument> = { ...data };
 
-  // Set main cover image
-  payload.mainImageUrl = `/uploads/project/${files.mainImage[0].filename}`;
+  // Upload main cover image to Cloudinary
+  const mainResult = await uploadToCloudinary(
+    files.mainImage[0].buffer,
+    'portfolio/project'
+  );
+  payload.mainImageUrl = mainResult.secure_url;
 
-  // Set secondary images array if any provided
+  // Upload additional images if provided
   if (files.images && files.images.length > 0) {
-    payload.imagesUrls = files.images.map(f => `/uploads/project/${f.filename}`);
+    const uploadPromises = files.images.map(f =>
+      uploadToCloudinary(f.buffer, 'portfolio/project')
+    );
+    const results = await Promise.all(uploadPromises);
+    payload.imagesUrls = results.map(r => r.secure_url);
   }
 
   return await Project.create(payload);
@@ -54,21 +62,28 @@ export const updateProject = async (
   const payload: Partial<IProjectDocument> = { ...data };
 
   if (files) {
-    // Overwrite mainImage
+    // Replace main image
     if (files.mainImage && files.mainImage.length > 0) {
       if (existingProject.mainImageUrl) {
-        deleteLocalFile(existingProject.mainImageUrl);
+        await deleteFromCloudinary(existingProject.mainImageUrl);
       }
-      payload.mainImageUrl = `/uploads/project/${files.mainImage[0].filename}`;
+      const result = await uploadToCloudinary(
+        files.mainImage[0].buffer,
+        'portfolio/project'
+      );
+      payload.mainImageUrl = result.secure_url;
     }
 
-    // Overwrite images array 
-    // Usually standard to replace the whole array of secondary images when uploading new ones via form-data.
+    // Replace secondary images array
     if (files.images && files.images.length > 0) {
       if (existingProject.imagesUrls && existingProject.imagesUrls.length > 0) {
-        existingProject.imagesUrls.forEach(url => deleteLocalFile(url));
+        await Promise.all(existingProject.imagesUrls.map(url => deleteFromCloudinary(url)));
       }
-      payload.imagesUrls = files.images.map(f => `/uploads/project/${f.filename}`);
+      const uploadPromises = files.images.map(f =>
+        uploadToCloudinary(f.buffer, 'portfolio/project')
+      );
+      const results = await Promise.all(uploadPromises);
+      payload.imagesUrls = results.map(r => r.secure_url);
     }
   }
 
@@ -82,14 +97,12 @@ export const deleteProject = async (id: string): Promise<void> => {
     throw new Error('Project not found.');
   }
 
-  // Delete main image
   if (project.mainImageUrl) {
-    deleteLocalFile(project.mainImageUrl);
+    await deleteFromCloudinary(project.mainImageUrl);
   }
 
-  // Delete secondary images
   if (project.imagesUrls && project.imagesUrls.length > 0) {
-    project.imagesUrls.forEach(url => deleteLocalFile(url));
+    await Promise.all(project.imagesUrls.map(url => deleteFromCloudinary(url)));
   }
 
   await Project.findByIdAndDelete(id);

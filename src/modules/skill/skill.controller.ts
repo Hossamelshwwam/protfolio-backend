@@ -3,23 +3,12 @@ import * as SkillService from './skill.service';
 import { sendSuccess, sendError } from '../../utils/response';
 import { createSkillSchema, updateSkillSchema } from './skill.validation';
 
-// Helper to format dynamic local URLs
-const formatSkillResponse = (req: Request, skill: any) => {
-  const skillJson = skill.toJSON ? skill.toJSON() : skill;
-  const baseUrl = `${req.protocol}://${req.get('host')}`;
-
-  if (skillJson.logoUrl && skillJson.logoUrl.startsWith('/uploads/')) {
-    skillJson.logoUrl = `${baseUrl}${skillJson.logoUrl}`;
-  }
-
-  return skillJson;
-};
-
-export const getAllSkills = async (req: Request, res: Response): Promise<void> => {
+export const getAllSkills = async (_req: Request, res: Response): Promise<void> => {
   try {
     const skills = await SkillService.getAllSkills();
-    const formattedSkills = skills.map(skill => formatSkillResponse(req, skill));
-    sendSuccess(res, 'Skills fetched successfully.', formattedSkills);
+    // Cloudinary URLs are already absolute – return directly
+    const skillsJson = skills.map(s => (s.toJSON ? s.toJSON() : s));
+    sendSuccess(res, 'Skills fetched successfully.', skillsJson);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch skills.';
     sendError(res, message, 500);
@@ -29,7 +18,7 @@ export const getAllSkills = async (req: Request, res: Response): Promise<void> =
 export const getSkillById = async (req: Request, res: Response): Promise<void> => {
   try {
     const skill = await SkillService.getSkillById(req.params.id);
-    sendSuccess(res, 'Skill fetched successfully.', formatSkillResponse(req, skill));
+    sendSuccess(res, 'Skill fetched successfully.', skill.toJSON ? skill.toJSON() : skill);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch skill.';
     sendError(res, message, 404);
@@ -38,13 +27,11 @@ export const getSkillById = async (req: Request, res: Response): Promise<void> =
 
 export const createSkill = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Validate text fields. (Handles req.body parsed by Multer)
     const validatedData = createSkillSchema.parse(req.body);
-
     const file = req.file;
 
     const skill = await SkillService.createSkill(validatedData, file);
-    sendSuccess(res, 'Skill created successfully.', formatSkillResponse(req, skill), 201);
+    sendSuccess(res, 'Skill created successfully.', skill.toJSON ? skill.toJSON() : skill, 201);
   } catch (error) {
     if (error && typeof error === 'object' && 'errors' in error) {
       sendError(res, 'Validation failed.', 400, (error as any).errors);
@@ -61,7 +48,7 @@ export const updateSkill = async (req: Request, res: Response): Promise<void> =>
     const file = req.file;
 
     const skill = await SkillService.updateSkill(req.params.id, validatedData, file);
-    sendSuccess(res, 'Skill updated successfully.', formatSkillResponse(req, skill));
+    sendSuccess(res, 'Skill updated successfully.', skill.toJSON ? skill.toJSON() : skill);
   } catch (error) {
     if (error && typeof error === 'object' && 'errors' in error) {
       sendError(res, 'Validation failed.', 400, (error as any).errors);

@@ -1,7 +1,7 @@
 import Skill, { ISkillDocument } from './skill.model';
 import Category from '../category/category.model';
 import { CreateSkillInput, UpdateSkillInput } from './skill.validation';
-import { deleteLocalFile } from '../../utils/file.utils';
+import { uploadToCloudinary, deleteFromCloudinary } from '../../utils/cloudinary.utils';
 
 export const getAllSkills = async (): Promise<ISkillDocument[]> => {
   return await Skill.find({}).populate('category').sort({ createdAt: -1 });
@@ -19,7 +19,6 @@ export const createSkill = async (
   data: CreateSkillInput,
   file?: Express.Multer.File
 ): Promise<ISkillDocument> => {
-  // Ensure the referenced category exists
   const categoryExists = await Category.findById(data.category);
   if (!categoryExists) {
     throw new Error('The referenced Category does not exist.');
@@ -27,9 +26,10 @@ export const createSkill = async (
 
   const payload: Partial<ISkillDocument> = { ...data };
 
-  // Attach logo file path if uploaded
   if (file) {
-    payload.logoUrl = `/uploads/skill/${file.filename}`;
+    // Upload logo to Cloudinary
+    const result = await uploadToCloudinary(file.buffer, 'portfolio/skill');
+    payload.logoUrl = result.secure_url;
   }
 
   const skill = await Skill.create(payload);
@@ -50,13 +50,14 @@ export const updateSkill = async (
 
   const payload: Partial<ISkillDocument> = { ...data };
 
-  // If a new file is uploaded, update the logo URL
   if (file) {
+    // Delete old Cloudinary logo, then upload new one
     const existingSkill = await Skill.findById(id);
     if (existingSkill?.logoUrl) {
-      deleteLocalFile(existingSkill.logoUrl);
+      await deleteFromCloudinary(existingSkill.logoUrl);
     }
-    payload.logoUrl = `/uploads/skill/${file.filename}`;
+    const result = await uploadToCloudinary(file.buffer, 'portfolio/skill');
+    payload.logoUrl = result.secure_url;
   }
 
   const skill = await Skill.findByIdAndUpdate(id, payload, { new: true }).populate('category');
@@ -74,7 +75,7 @@ export const deleteSkill = async (id: string): Promise<void> => {
   }
 
   if (skill.logoUrl) {
-    deleteLocalFile(skill.logoUrl);
+    await deleteFromCloudinary(skill.logoUrl);
   }
 
   await Skill.findByIdAndDelete(id);

@@ -5,12 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateProfile = exports.getProfile = void 0;
 const profile_model_1 = __importDefault(require("./profile.model"));
-const file_utils_1 = require("../../utils/file.utils");
+const cloudinary_utils_1 = require("../../utils/cloudinary.utils");
 // ─── Fetch the active profile ─────────────────────────────────────────────────
 const getProfile = async () => {
-    // Since it's a portfolio, there is only one profile
     let profile = await profile_model_1.default.findOne({});
-    // If no profile exists yet, create an empty skeleton
     if (!profile) {
         profile = await profile_model_1.default.create({});
     }
@@ -20,7 +18,7 @@ exports.getProfile = getProfile;
 // ─── Update Profile Data & Files ──────────────────────────────────────────────
 const updateProfile = async (data, files) => {
     const profile = await (0, exports.getProfile)();
-    // 1. Update text fields if provided
+    // 1. Update text fields
     if (data.name !== undefined)
         profile.name = data.name;
     if (data.jobTitle !== undefined)
@@ -33,24 +31,18 @@ const updateProfile = async (data, files) => {
             ...data.socialLinks,
         };
     }
-    // 2. Handle File Uploads (Save relative paths)
-    if (files) {
-        // Logo upload
-        if (files.logo && files.logo.length > 0) {
-            if (profile.logoUrl) {
-                (0, file_utils_1.deleteLocalFile)(profile.logoUrl);
-            }
-            const logoFile = files.logo[0];
-            profile.logoUrl = `/uploads/profile/${logoFile.filename}`;
+    // 2. cvUrl comes as a plain string (Drive link) from req.body
+    if (data.cvUrl !== undefined) {
+        profile.cvUrl = data.cvUrl;
+    }
+    // 3. Upload logo to Cloudinary if provided
+    if (files?.logo && files.logo.length > 0) {
+        // Remove old logo from Cloudinary
+        if (profile.logoUrl) {
+            await (0, cloudinary_utils_1.deleteFromCloudinary)(profile.logoUrl);
         }
-        // CV upload
-        if (files.cv && files.cv.length > 0) {
-            if (profile.cvUrl) {
-                (0, file_utils_1.deleteLocalFile)(profile.cvUrl);
-            }
-            const cvFile = files.cv[0];
-            profile.cvUrl = `/uploads/profile/${cvFile.filename}`;
-        }
+        const result = await (0, cloudinary_utils_1.uploadToCloudinary)(files.logo[0].buffer, 'portfolio/profile');
+        profile.logoUrl = result.secure_url;
     }
     await profile.save();
     return profile;

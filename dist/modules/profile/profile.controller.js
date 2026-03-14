@@ -37,24 +37,13 @@ exports.updateProfile = exports.getProfile = void 0;
 const ProfileService = __importStar(require("./profile.service"));
 const response_1 = require("../../utils/response");
 const profile_validation_1 = require("./profile.validation");
-// ─── Helper: Format Profile URLs ──────────────────────────────────────────────
-const formatProfileResponse = (req, profile) => {
-    const profileJson = profile.toJSON ? profile.toJSON() : profile;
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    // Prepend base URL if the path starts with /uploads/ (relative path)
-    if (profileJson.logoUrl && profileJson.logoUrl.startsWith('/uploads/')) {
-        profileJson.logoUrl = `${baseUrl}${profileJson.logoUrl}`;
-    }
-    if (profileJson.cvUrl && profileJson.cvUrl.startsWith('/uploads/')) {
-        profileJson.cvUrl = `${baseUrl}${profileJson.cvUrl}`;
-    }
-    return profileJson;
-};
 // ─── Get Profile ──────────────────────────────────────────────────────────────
 const getProfile = async (req, res) => {
     try {
         const profile = await ProfileService.getProfile();
-        (0, response_1.sendSuccess)(res, 'Profile fetched successfully.', formatProfileResponse(req, profile));
+        // Cloudinary URLs are already full URLs – no need to prefix
+        const profileJson = profile.toJSON ? profile.toJSON() : profile;
+        (0, response_1.sendSuccess)(res, 'Profile fetched successfully.', profileJson);
     }
     catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to fetch profile.';
@@ -65,16 +54,16 @@ exports.getProfile = getProfile;
 // ─── Update Profile (Multipart) ───────────────────────────────────────────────
 const updateProfile = async (req, res) => {
     try {
-        // 1. Zod runtime validation of text fields
+        // 1. Zod runtime validation of text fields (including cvUrl as a Drive link)
         const validatedData = profile_validation_1.updateProfileSchema.parse(req.body);
-        // 2. Extract files
+        // 2. Extract only the logo file (cv is now a body string)
         const files = req.files;
-        // 3. Update via Service (stores relative paths)
+        // 3. Update via Service – uploads logo to Cloudinary
         const updatedProfile = await ProfileService.updateProfile(validatedData, files);
-        (0, response_1.sendSuccess)(res, 'Profile updated successfully.', formatProfileResponse(req, updatedProfile));
+        const profileJson = updatedProfile.toJSON ? updatedProfile.toJSON() : updatedProfile;
+        (0, response_1.sendSuccess)(res, 'Profile updated successfully.', profileJson);
     }
     catch (error) {
-        // If it's a Zod error, format it back
         if (error && typeof error === 'object' && 'errors' in error) {
             (0, response_1.sendError)(res, 'Validation failed.', 400, error.errors);
             return;

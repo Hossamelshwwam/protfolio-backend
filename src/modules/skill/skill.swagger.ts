@@ -13,8 +13,8 @@
  *           example: "React"
  *         logoUrl:
  *           type: string
- *           description: Dynamically generated full URL to the uploaded logo file.
- *           example: "http://localhost:5000/uploads/skill/d23f4b23...react.png"
+ *           description: Cloudinary secure URL for the skill logo.
+ *           example: "https://res.cloudinary.com/dbc9by5pu/image/upload/v1234/portfolio/skill/react.png"
  *         category:
  *           $ref: '#/components/schemas/Category'
  *         createdAt:

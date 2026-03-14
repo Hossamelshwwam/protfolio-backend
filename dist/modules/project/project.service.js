@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteProject = exports.updateProject = exports.createProject = exports.getProjectById = exports.getAllProjects = void 0;
 const project_model_1 = __importDefault(require("./project.model"));
-const file_utils_1 = require("../../utils/file.utils");
+const cloudinary_utils_1 = require("../../utils/cloudinary.utils");
 const getAllProjects = async () => {
     return await project_model_1.default.find({}).sort({ createdAt: -1 });
 };
@@ -23,11 +23,14 @@ const createProject = async (data, files) => {
         throw new Error('mainImage is required to create a project.');
     }
     const payload = { ...data };
-    // Set main cover image
-    payload.mainImageUrl = `/uploads/project/${files.mainImage[0].filename}`;
-    // Set secondary images array if any provided
+    // Upload main cover image to Cloudinary
+    const mainResult = await (0, cloudinary_utils_1.uploadToCloudinary)(files.mainImage[0].buffer, 'portfolio/project');
+    payload.mainImageUrl = mainResult.secure_url;
+    // Upload additional images if provided
     if (files.images && files.images.length > 0) {
-        payload.imagesUrls = files.images.map(f => `/uploads/project/${f.filename}`);
+        const uploadPromises = files.images.map(f => (0, cloudinary_utils_1.uploadToCloudinary)(f.buffer, 'portfolio/project'));
+        const results = await Promise.all(uploadPromises);
+        payload.imagesUrls = results.map(r => r.secure_url);
     }
     return await project_model_1.default.create(payload);
 };
@@ -39,20 +42,22 @@ const updateProject = async (id, data, files) => {
     }
     const payload = { ...data };
     if (files) {
-        // Overwrite mainImage
+        // Replace main image
         if (files.mainImage && files.mainImage.length > 0) {
             if (existingProject.mainImageUrl) {
-                (0, file_utils_1.deleteLocalFile)(existingProject.mainImageUrl);
+                await (0, cloudinary_utils_1.deleteFromCloudinary)(existingProject.mainImageUrl);
             }
-            payload.mainImageUrl = `/uploads/project/${files.mainImage[0].filename}`;
+            const result = await (0, cloudinary_utils_1.uploadToCloudinary)(files.mainImage[0].buffer, 'portfolio/project');
+            payload.mainImageUrl = result.secure_url;
         }
-        // Overwrite images array 
-        // Usually standard to replace the whole array of secondary images when uploading new ones via form-data.
+        // Replace secondary images array
         if (files.images && files.images.length > 0) {
             if (existingProject.imagesUrls && existingProject.imagesUrls.length > 0) {
-                existingProject.imagesUrls.forEach(url => (0, file_utils_1.deleteLocalFile)(url));
+                await Promise.all(existingProject.imagesUrls.map(url => (0, cloudinary_utils_1.deleteFromCloudinary)(url)));
             }
-            payload.imagesUrls = files.images.map(f => `/uploads/project/${f.filename}`);
+            const uploadPromises = files.images.map(f => (0, cloudinary_utils_1.uploadToCloudinary)(f.buffer, 'portfolio/project'));
+            const results = await Promise.all(uploadPromises);
+            payload.imagesUrls = results.map(r => r.secure_url);
         }
     }
     const updatedProject = await project_model_1.default.findByIdAndUpdate(id, payload, { new: true });
@@ -64,13 +69,11 @@ const deleteProject = async (id) => {
     if (!project) {
         throw new Error('Project not found.');
     }
-    // Delete main image
     if (project.mainImageUrl) {
-        (0, file_utils_1.deleteLocalFile)(project.mainImageUrl);
+        await (0, cloudinary_utils_1.deleteFromCloudinary)(project.mainImageUrl);
     }
-    // Delete secondary images
     if (project.imagesUrls && project.imagesUrls.length > 0) {
-        project.imagesUrls.forEach(url => (0, file_utils_1.deleteLocalFile)(url));
+        await Promise.all(project.imagesUrls.map(url => (0, cloudinary_utils_1.deleteFromCloudinary)(url)));
     }
     await project_model_1.default.findByIdAndDelete(id);
 };

@@ -37,27 +37,12 @@ exports.deleteProject = exports.updateProject = exports.createProject = exports.
 const ProjectService = __importStar(require("./project.service"));
 const response_1 = require("../../utils/response");
 const project_validation_1 = require("./project.validation");
-// Helper to format dynamic URLs so clients receive full links
-const formatProjectResponse = (req, project) => {
-    const json = project.toJSON ? project.toJSON() : project;
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    if (json.mainImageUrl && json.mainImageUrl.startsWith('/uploads/')) {
-        json.mainImageUrl = `${baseUrl}${json.mainImageUrl}`;
-    }
-    if (json.imagesUrls && Array.isArray(json.imagesUrls)) {
-        json.imagesUrls = json.imagesUrls.map((url) => {
-            if (url.startsWith('/uploads/'))
-                return `${baseUrl}${url}`;
-            return url;
-        });
-    }
-    return json;
-};
-const getAllProjects = async (req, res) => {
+// Cloudinary URLs are already full/absolute – no transformation needed
+const toJson = (project) => (project.toJSON ? project.toJSON() : project);
+const getAllProjects = async (_req, res) => {
     try {
         const projects = await ProjectService.getAllProjects();
-        const formatted = projects.map(p => formatProjectResponse(req, p));
-        (0, response_1.sendSuccess)(res, 'Projects fetched successfully.', formatted);
+        (0, response_1.sendSuccess)(res, 'Projects fetched successfully.', projects.map(toJson));
     }
     catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to fetch projects.';
@@ -68,7 +53,7 @@ exports.getAllProjects = getAllProjects;
 const getProjectById = async (req, res) => {
     try {
         const project = await ProjectService.getProjectById(req.params.id);
-        (0, response_1.sendSuccess)(res, 'Project fetched successfully.', formatProjectResponse(req, project));
+        (0, response_1.sendSuccess)(res, 'Project fetched successfully.', toJson(project));
     }
     catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to fetch project.';
@@ -78,12 +63,11 @@ const getProjectById = async (req, res) => {
 exports.getProjectById = getProjectById;
 const createProject = async (req, res) => {
     try {
-        // 1. Zod runtime validation
-        // (This handles mapping a comma separated string sequence to a string[] for skills!)
+        // Zod validation – videoUrl is validated here as a plain URL string
         const validatedData = project_validation_1.createProjectSchema.parse(req.body);
         const files = req.files;
         const project = await ProjectService.createProject(validatedData, files);
-        (0, response_1.sendSuccess)(res, 'Project created successfully.', formatProjectResponse(req, project), 201);
+        (0, response_1.sendSuccess)(res, 'Project created successfully.', toJson(project), 201);
     }
     catch (error) {
         if (error && typeof error === 'object' && 'errors' in error) {
@@ -100,7 +84,7 @@ const updateProject = async (req, res) => {
         const validatedData = project_validation_1.updateProjectSchema.parse(req.body);
         const files = req.files;
         const project = await ProjectService.updateProject(req.params.id, validatedData, files);
-        (0, response_1.sendSuccess)(res, 'Project updated successfully.', formatProjectResponse(req, project));
+        (0, response_1.sendSuccess)(res, 'Project updated successfully.', toJson(project));
     }
     catch (error) {
         if (error && typeof error === 'object' && 'errors' in error) {

@@ -31,10 +31,10 @@
  *               type: string
  *         logoUrl:
  *           type: string
- *           example: "http://localhost:5000/uploads/2f5b...-logo.png"
+ *           example: "https://res.cloudinary.com/demo/image/upload/v1234/profile_logo.png"
  *         cvUrl:
  *           type: string
- *           example: "http://localhost:5000/uploads/8a1c...-resume.pdf"
+ *           example: "https://drive.google.com/file/d/1B7xv.../view?usp=sharing"
  *
  * /api/profile:
  *   get:
@@ -58,7 +58,8 @@
  *     tags: [Profile Data]
  *     summary: Update portfolio profile (Admin)
  *     description: |
- *       Updates the portfolio details and handles file uploads for logo and CV.
+ *       Updates the portfolio details and handles file uploads for logo.
+ *       CV is now accepted as a direct URL link (cvUrl).
  *       Instead of `application/json`, this MUST use **`multipart/form-data`**.
  *       Requires **Admin** role privileges.
  *     security:
@@ -85,10 +86,10 @@
  *                 type: string
  *                 format: binary
  *                 description: Upload a new standard image (jpg/png/webp) for the site logo
- *               cv:
+ *               cvUrl:
  *                 type: string
- *                 format: binary
- *                 description: Upload a resume (pdf/doc/docx)
+ *                 description: "Direct URL to CV/Resume (e.g. Google Drive link). No longer a file upload."
+ *                 example: "https://drive.google.com/..."
  *     responses:
  *       200:
  *         description: Profile updated

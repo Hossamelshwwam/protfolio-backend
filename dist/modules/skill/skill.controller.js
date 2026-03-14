@@ -37,20 +37,12 @@ exports.deleteSkill = exports.updateSkill = exports.createSkill = exports.getSki
 const SkillService = __importStar(require("./skill.service"));
 const response_1 = require("../../utils/response");
 const skill_validation_1 = require("./skill.validation");
-// Helper to format dynamic local URLs
-const formatSkillResponse = (req, skill) => {
-    const skillJson = skill.toJSON ? skill.toJSON() : skill;
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    if (skillJson.logoUrl && skillJson.logoUrl.startsWith('/uploads/')) {
-        skillJson.logoUrl = `${baseUrl}${skillJson.logoUrl}`;
-    }
-    return skillJson;
-};
-const getAllSkills = async (req, res) => {
+const getAllSkills = async (_req, res) => {
     try {
         const skills = await SkillService.getAllSkills();
-        const formattedSkills = skills.map(skill => formatSkillResponse(req, skill));
-        (0, response_1.sendSuccess)(res, 'Skills fetched successfully.', formattedSkills);
+        // Cloudinary URLs are already absolute – return directly
+        const skillsJson = skills.map(s => (s.toJSON ? s.toJSON() : s));
+        (0, response_1.sendSuccess)(res, 'Skills fetched successfully.', skillsJson);
     }
     catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to fetch skills.';
@@ -61,7 +53,7 @@ exports.getAllSkills = getAllSkills;
 const getSkillById = async (req, res) => {
     try {
         const skill = await SkillService.getSkillById(req.params.id);
-        (0, response_1.sendSuccess)(res, 'Skill fetched successfully.', formatSkillResponse(req, skill));
+        (0, response_1.sendSuccess)(res, 'Skill fetched successfully.', skill.toJSON ? skill.toJSON() : skill);
     }
     catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to fetch skill.';
@@ -71,11 +63,10 @@ const getSkillById = async (req, res) => {
 exports.getSkillById = getSkillById;
 const createSkill = async (req, res) => {
     try {
-        // Validate text fields. (Handles req.body parsed by Multer)
         const validatedData = skill_validation_1.createSkillSchema.parse(req.body);
         const file = req.file;
         const skill = await SkillService.createSkill(validatedData, file);
-        (0, response_1.sendSuccess)(res, 'Skill created successfully.', formatSkillResponse(req, skill), 201);
+        (0, response_1.sendSuccess)(res, 'Skill created successfully.', skill.toJSON ? skill.toJSON() : skill, 201);
     }
     catch (error) {
         if (error && typeof error === 'object' && 'errors' in error) {
@@ -92,7 +83,7 @@ const updateSkill = async (req, res) => {
         const validatedData = skill_validation_1.updateSkillSchema.parse(req.body);
         const file = req.file;
         const skill = await SkillService.updateSkill(req.params.id, validatedData, file);
-        (0, response_1.sendSuccess)(res, 'Skill updated successfully.', formatSkillResponse(req, skill));
+        (0, response_1.sendSuccess)(res, 'Skill updated successfully.', skill.toJSON ? skill.toJSON() : skill);
     }
     catch (error) {
         if (error && typeof error === 'object' && 'errors' in error) {

@@ -1,4 +1,4 @@
-import express, { Application } from "express";
+import express from "express";
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import userRoutes from "./modules/user/user.routes";
@@ -17,55 +17,45 @@ import "./modules/skill/skill.swagger"; // register JSDoc annotations
 import "./modules/experience/experience.swagger"; // register JSDoc annotations
 import "./modules/education/education.swagger"; // register JSDoc annotations
 import "./modules/project/project.swagger"; // register JSDoc annotations
-import path from "path";
+import "dotenv/config";
 
-const createApp = (): Application => {
-  const app = express();
+const app = express();
 
-  // ─── Global Middleware ──────────────────────────────────────────────────────
-  app.use(cors({ origin: process.env.CLIENT_URL || "*", credentials: true }));
-  app.use(express.json({ limit: "10kb" }));
-  app.use(express.urlencoded({ extended: true }));
+// ─── Global Middleware ──────────────────────────────────────────────────────
+app.use(cors({ origin: process.env.CLIENT_URL || "*", credentials: true }));
+app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ extended: true }));
 
-  // ─── Static Files ─────────────────────────────────────────────────────────────
-  // Serve the uploads directory to make images/CVs accessible via URL
-  app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+// ─── Health Check ───────────────────────────────────────────────────────────
+app.get("/health", (_req, res) => {
+  res
+    .status(200)
+    .json({ success: true, message: "🚀 Portfolio API is running." });
+});
 
-  // ─── Health Check ───────────────────────────────────────────────────────────
-  app.get("/health", (_req, res) => {
-    res
-      .status(200)
-      .json({ success: true, message: "🚀 Portfolio API is running." });
-  });
+// ─── Swagger Docs ────────────────────────────────────────────────────────────
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: "Portfolio API Docs",
+    swaggerOptions: {
+      persistAuthorization: true, // keep the JWT token across page refreshes
+    },
+  }),
+);
 
-  // ─── Swagger Docs ────────────────────────────────────────────────────────────
-  app.use(
-    "/api-docs",
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec, {
-      customSiteTitle: "Portfolio API Docs",
-      swaggerOptions: {
-        persistAuthorization: true, // keep the JWT token across page refreshes
-      },
-    }),
-  );
+// ─── API Routes ─────────────────────────────────────────────────────────────
+app.use("/api/users", userRoutes);
+app.use("/api/profile", profileRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/skills", skillRoutes);
+app.use("/api/experiences", experienceRoutes);
+app.use("/api/education", educationRoutes);
+app.use("/api/projects", projectRoutes);
 
-  // ─── API Routes ─────────────────────────────────────────────────────────────
-  app.use("/api/users", userRoutes);
-  app.use("/api/profile", profileRoutes);
-  app.use("/api/categories", categoryRoutes);
-  app.use("/api/skills", skillRoutes);
-  app.use("/api/experiences", experienceRoutes);
-  app.use("/api/education", educationRoutes);
-  app.use("/api/projects", projectRoutes);
+// ─── Error Handlers ─────────────────────────────────────────────────────────
+app.use(notFound);
+app.use(globalErrorHandler);
 
-  // ─── Error Handlers ─────────────────────────────────────────────────────────
-  app.use(notFound);
-  app.use(globalErrorHandler);
-
-  return app;
-};
-
-export default createApp;
-
-
+export default app;

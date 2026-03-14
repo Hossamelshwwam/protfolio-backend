@@ -1,14 +1,13 @@
-import "dotenv/config";
-import createApp from "../app";
-import connectDB from "../config/db";
+import app from "./app";
+import connectDB from "./config/db";
 
 const PORT = process.env.PORT || 5000;
 
 const startServer = async (): Promise<void> => {
+  // 1. Connect to Database
   await connectDB();
 
-  const app = createApp();
-
+  // 2. Start Express Server
   app.listen(PORT, () => {
     console.log(`\n🚀 Server running on http://localhost:${PORT}`);
     console.log(`📋 Environment: ${process.env.NODE_ENV || "development"}`);
